@@ -278,6 +278,73 @@ test("base64url validations", () => {
   }
 });
 
+test("base64 option validations", () => {
+  const allowPadding = z.base64({ padding: "allow" });
+  expect(allowPadding.parse("TQ")).toBe("TQ");
+
+  const forbidPadding = z.base64({ padding: "forbid" });
+  expect(forbidPadding.parse("TQ")).toBe("TQ");
+  expect(() => forbidPadding.parse("TQ==")).toThrow();
+
+  const strict = z.base64({ lastChunkHandling: "strict" });
+  expect(strict.parse("TQ==")).toBe("TQ==");
+  expect(() => strict.parse("TQ")).toThrow();
+  expect(() => strict.parse("TR==")).toThrow();
+
+  const ignoreWhitespace = z.base64({ padding: "allow", ignoreWhitespace: true });
+  expect(ignoreWhitespace.parse(" \nTQ\t ")).toBe(" \nTQ\t ");
+  expect(ignoreWhitespace.parse("T Q")).toBe("T Q");
+  expect(() => ignoreWhitespace.parse("T\n?")).toThrow();
+
+  const strictIgnoreWhitespace = z.base64({ padding: "allow", lastChunkHandling: "strict", ignoreWhitespace: true });
+  expect(strictIgnoreWhitespace.parse("QUJD TQ==")).toBe("QUJD TQ==");
+  expect(() => strictIgnoreWhitespace.parse("QUJD TR==")).toThrow();
+});
+
+test("base64url option validations", () => {
+  const allowPadding = z.base64url({ padding: "allow" });
+  expect(allowPadding.parse("SGVsbG8=")).toBe("SGVsbG8=");
+
+  const requirePadding = z.base64url({ padding: "require" });
+  expect(requirePadding.parse("SGVsbG8=")).toBe("SGVsbG8=");
+  expect(() => requirePadding.parse("SGVsbG8")).toThrow();
+
+  const strict = z.base64url({ padding: "allow", lastChunkHandling: "strict" });
+  expect(strict.parse("TQ==")).toBe("TQ==");
+  expect(() => strict.parse("TQ")).toThrow();
+  expect(() => strict.parse("TR==")).toThrow();
+
+  const ignoreWhitespace = z.base64url({ padding: "allow", ignoreWhitespace: true });
+  expect(ignoreWhitespace.parse(" \nSGVsbG8=\t ")).toBe(" \nSGVsbG8=\t ");
+  expect(ignoreWhitespace.parse("SG Vs bG8=")).toBe("SG Vs bG8=");
+  expect(() => ignoreWhitespace.parse("SGVsbG8+")).toThrow();
+
+  const strictIgnoreWhitespace = z.base64url({ padding: "allow", lastChunkHandling: "strict", ignoreWhitespace: true });
+  expect(strictIgnoreWhitespace.parse("QUJD TQ==")).toBe("QUJD TQ==");
+  expect(() => strictIgnoreWhitespace.parse("QUJD TR==")).toThrow();
+});
+
+test("base64JS validations", () => {
+  const base64js = z.base64JS();
+  expect(base64js.parse("TQ")).toBe("TQ");
+  expect(base64js.parse("TR")).toBe("TR");
+  expect(base64js.parse("TR==")).toBe("TR==");
+  expect(base64js.parse("T\nR")).toBe("T\nR");
+  expect(base64js.parse("\n\nT\nR\n\n")).toBe("\n\nT\nR\n\n");
+  expect(() => base64js.parse("TR=")).toThrow();
+
+  const strict = z.base64JS({ lastChunkHandling: "strict" });
+  expect(strict.parse("TQ==")).toBe("TQ==");
+  expect(() => strict.parse("TR")).toThrow();
+
+  const base64url = z.base64JS({ alphabet: "base64url" });
+  expect(base64url.parse("SGVsbG8")).toBe("SGVsbG8");
+  expect(base64url.parse("SGVsbG8=")).toBe("SGVsbG8=");
+  expect(() => base64url.parse("SGVsbG8+")).toThrow();
+
+  expect(z.string().base64JS().parse("TQ")).toBe("TQ");
+});
+
 test("big base64 and base64url", () => {
   const bigbase64 = randomBytes(1024 * 1024 * 10).toString("base64");
   z.base64().parse(bigbase64);

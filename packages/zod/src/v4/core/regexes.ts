@@ -70,9 +70,24 @@ export const cidrv4: RegExp =
 export const cidrv6: RegExp =
   /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|::|([0-9a-fA-F]{1,4})?::([0-9a-fA-F]{1,4}:?){0,6})\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/;
 
-// https://stackoverflow.com/questions/7860392/determine-if-string-is-in-base64-using-javascript
-export const base64: RegExp = /^$|^(?:[0-9a-zA-Z+/]{4})*(?:(?:[0-9a-zA-Z+/]{2}==)|(?:[0-9a-zA-Z+/]{3}=))?$/;
-export const base64url: RegExp = /^[A-Za-z0-9_-]*$/;
+export function base64Pattern(params: {
+  alphabet: "base64" | "base64url";
+  padding: "forbid" | "allow" | "require";
+  lastChunkHandling: "strict" | "loose";
+}): RegExp {
+  return util.base64Pattern(params);
+}
+
+export const base64: RegExp = /*@__PURE__*/ base64Pattern({
+  alphabet: "base64",
+  padding: "require",
+  lastChunkHandling: "loose",
+});
+export const base64url: RegExp = /*@__PURE__*/ base64Pattern({
+  alphabet: "base64url",
+  padding: "forbid",
+  lastChunkHandling: "loose",
+});
 
 // based on https://stackoverflow.com/questions/106179/regular-expression-to-match-dns-hostname-or-ip-address
 // export const hostname: RegExp = /^([a-zA-Z0-9-]+\.)*[a-zA-Z0-9-]+$/;
