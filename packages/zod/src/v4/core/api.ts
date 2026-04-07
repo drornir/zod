@@ -416,8 +416,10 @@ export function _cidrv6<T extends schemas.$ZodCIDRv6>(
 }
 
 // Base64
-export type $ZodBase64Params = StringFormatParams<schemas.$ZodBase64, "pattern" | "when">;
-export type $ZodCheckBase64Params = CheckStringFormatParams<schemas.$ZodBase64, "pattern" | "when">;
+type $ZodBase64JSOptions = StringFormatParams<schemas.$ZodBase64JS, "pattern" | "when">;
+type $ZodCheckBase64JSOptions = CheckStringFormatParams<schemas.$ZodBase64JS, "pattern" | "when">;
+export type $ZodBase64Params = Omit<$ZodBase64JSOptions, "alphabet">;
+export type $ZodCheckBase64Params = Omit<$ZodCheckBase64JSOptions, "alphabet">;
 // @__NO_SIDE_EFFECTS__
 export function _base64<T extends schemas.$ZodBase64>(
   Class: util.SchemaClass<T>,
@@ -429,12 +431,17 @@ export function _base64<T extends schemas.$ZodBase64>(
     check: "string_format",
     abort: false,
     ...util.normalizeParams(params),
+    alphabet: "base64",
+    padding: typeof params === "string" ? "require" : (params?.padding ?? "require"),
+    lastChunkHandling: typeof params === "string" ? "loose" : (params?.lastChunkHandling ?? "loose"),
+    trimWhitespace: typeof params === "string" ? false : (params?.trimWhitespace ?? false),
+    stripWhitespace: typeof params === "string" ? false : (params?.stripWhitespace ?? false),
   });
 }
 
 // base64url
-export type $ZodBase64URLParams = StringFormatParams<schemas.$ZodBase64URL, "pattern" | "when">;
-export type $ZodCheckBase64URLParams = CheckStringFormatParams<schemas.$ZodBase64URL, "pattern" | "when">;
+export type $ZodBase64URLParams = Omit<$ZodBase64JSOptions, "alphabet">;
+export type $ZodCheckBase64URLParams = Omit<$ZodCheckBase64JSOptions, "alphabet">;
 // @__NO_SIDE_EFFECTS__
 export function _base64url<T extends schemas.$ZodBase64URL>(
   Class: util.SchemaClass<T>,
@@ -446,7 +453,35 @@ export function _base64url<T extends schemas.$ZodBase64URL>(
     check: "string_format",
     abort: false,
     ...util.normalizeParams(params),
+    alphabet: "base64url",
+    padding: typeof params === "string" ? "forbid" : (params?.padding ?? "forbid"),
+    lastChunkHandling: typeof params === "string" ? "loose" : (params?.lastChunkHandling ?? "loose"),
+    trimWhitespace: typeof params === "string" ? false : (params?.trimWhitespace ?? false),
+    stripWhitespace: typeof params === "string" ? false : (params?.stripWhitespace ?? false),
   });
+}
+
+// base64JS
+export type $ZodBase64JSParams = StringFormatParams<schemas.$ZodBase64JS, "pattern" | "when">;
+export type $ZodCheckBase64JSParams = CheckStringFormatParams<schemas.$ZodBase64JS, "pattern" | "when">;
+// @__NO_SIDE_EFFECTS__
+export function _base64JS<T extends schemas.$ZodBase64JS>(
+  Class: util.SchemaClass<T>,
+  params?: string | $ZodBase64JSParams | $ZodCheckBase64JSParams
+): T {
+  const alphabet = typeof params === "string" ? "base64" : (params?.alphabet ?? "base64");
+  return new Class({
+    type: "string",
+    check: "string_format",
+    abort: false,
+    ...util.normalizeParams(params),
+    alphabet,
+    padding: typeof params === "string" ? "allow" : (params?.padding ?? "allow"),
+    lastChunkHandling: typeof params === "string" ? "loose" : (params?.lastChunkHandling ?? "loose"),
+    trimWhitespace: typeof params === "string" ? true : (params?.trimWhitespace ?? true),
+    stripWhitespace: typeof params === "string" ? true : (params?.stripWhitespace ?? true),
+    ...(alphabet === "base64" ? { format: "base64" } : {}),
+  } as T["_zod"]["def"]);
 }
 
 // E164

@@ -251,6 +251,7 @@ z.hostname();
 z.emoji();         // validates a single emoji character
 z.base64();
 z.base64url();
+z.base64JS();      // JS-compatible base64 defaults
 z.hex();
 z.jwt();
 z.nanoid();
@@ -574,6 +575,46 @@ z.hash("sha256", { enc: "base64url" }); // base64url encoding (no padding)
 
 </Accordion>
 </Accordions>
+
+### Base64
+
+To validate base64-encoded strings:
+
+```ts
+z.base64(); // legacy-compatible standard base64 defaults
+z.base64url(); // legacy-compatible base64url defaults
+z.base64JS(); // JS-compatible base64 defaults
+```
+
+Use `z.base64JS()` when you want JavaScript-compatible decoding defaults. Use
+`z.base64()` and `z.base64url()` when you want the legacy-compatible defaults
+for those existing formats.
+
+Defaults:
+
+- `z.base64()`: `padding: "require"`, `lastChunkHandling: "loose"`, `ignoreWhitespace: false`
+- `z.base64url()`: `padding: "forbid"`, `lastChunkHandling: "loose"`, `ignoreWhitespace: false`
+- `z.base64JS()`: `alphabet: "base64"`, `padding: "allow"`, `lastChunkHandling: "loose"`, `ignoreWhitespace: true`
+
+```ts
+z.base64({ padding: "allow" });
+z.base64({ ignoreWhitespace: true, padding: "allow" });
+z.base64url({ lastChunkHandling: "strict", padding: "require" });
+z.base64JS({ alphabet: "base64url" });
+z.base64JS({ padding: "require", ignoreWhitespace: false });
+```
+
+- `padding`: `"require"` requires canonical `=`, `"allow"` accepts padded or unpadded input, `"forbid"` rejects padding
+- `lastChunkHandling`: `"loose"` or `"strict"`
+- `ignoreWhitespace`: allows base64 whitespace anywhere in the input
+- `alphabet`: only available on `z.base64JS()`, with `"base64"` or `"base64url"`
+
+Base64 whitespace here means only space, tab, line feed, carriage return, and
+form-feed. Other JavaScript whitespace characters are rejected; Zod only models
+the documented base64-whitespace subset for `atob()` and
+`Uint8Array.fromBase64()`.
+
+Successful parsing returns the original string unchanged.
 
 ### Custom formats
 

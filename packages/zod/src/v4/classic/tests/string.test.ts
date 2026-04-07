@@ -857,6 +857,8 @@ test("format", () => {
   expect(z.string().cuid2().format).toEqual("cuid2");
   expect(z.string().ulid().format).toEqual("ulid");
   expect(z.string().base64().format).toEqual("base64");
+  expect(z.base64JS().format).toEqual("base64");
+  expect(z.base64JS({ alphabet: "base64url" }).format).toBeNull();
   // expect(z.string().jsonString().format).toEqual("json_string");
   // expect(z.string().json().format).toEqual("json_string");
   expect(z.string().xid().format).toEqual("xid");

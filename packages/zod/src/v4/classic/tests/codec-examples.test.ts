@@ -327,6 +327,64 @@ test("base64 codec", () => {
 });
 
 // ============================================================================
+// base64JS
+// ============================================================================
+
+const base64JS = () =>
+  z.codec(z.base64JS(), z.instanceof(Uint8Array), {
+    decode: (base64String) => z.util.base64ToUint8Array(base64String),
+    encode: (bytes) => z.util.uint8ArrayToBase64(bytes),
+  });
+
+const base64JSBase64URL = () =>
+  z.codec(z.base64JS({ alphabet: "base64url" }), z.instanceof(Uint8Array), {
+    decode: (base64String) => z.util.base64urlToUint8Array(base64String),
+    encode: (bytes) => z.util.uint8ArrayToBase64url(bytes),
+  });
+
+test("base64JS codec", () => {
+  const codec = base64JS();
+
+  // Test decode with JS-style unpadded and whitespace-containing input
+  const decoded = z.decode(codec, "T\nQ");
+  expect(decoded).toBeInstanceOf(Uint8Array);
+  expect(Array.from(decoded)).toEqual([77]);
+
+  // Test encode remains canonical base64
+  const bytes = new Uint8Array([77]);
+  expect(z.encode(codec, bytes)).toBe("TQ==");
+
+  const looseRoundTrip = z.encode(codec, z.decode(codec, "TR"));
+  expect(looseRoundTrip).toBe("TQ==");
+});
+
+test("base64JS codec with base64url alphabet", () => {
+  const codec = base64JSBase64URL();
+
+  const decoded = z.decode(codec, "SGVsbG8");
+  expect(decoded).toBeInstanceOf(Uint8Array);
+  expect(Array.from(decoded)).toEqual([72, 101, 108, 108, 111]);
+
+  const bytes = new Uint8Array([72, 101, 108, 108, 111]);
+  expect(z.encode(codec, bytes)).toBe("SGVsbG8");
+});
+
+test("base64 util whitespace matches the supported JS subset", () => {
+  expect(Array.from(z.util.base64ToUint8Array(`T Q`))).toEqual([77]);
+  expect(Array.from(z.util.base64ToUint8Array(`T\tQ`))).toEqual([77]);
+  expect(Array.from(z.util.base64ToUint8Array(`T\nQ`))).toEqual([77]);
+  expect(Array.from(z.util.base64ToUint8Array(`T\rQ`))).toEqual([77]);
+  expect(Array.from(z.util.base64ToUint8Array(`T\fQ`))).toEqual([77]);
+
+  // These come from `\s` minus the accepted ASCII whitespace above.
+  expect(() => z.util.base64ToUint8Array("T\vQ"), "vertical tab").toThrow();
+  expect(() => z.util.base64ToUint8Array(`T${String.fromCodePoint(0x00a0)}Q`), "non-breaking space").toThrow();
+  expect(() => z.util.base64ToUint8Array(`T${String.fromCodePoint(0x1680)}Q`), "ogham space mark").toThrow();
+  expect(() => z.util.base64ToUint8Array(`T${String.fromCodePoint(0x2028)}Q`), "line separator").toThrow();
+  expect(() => z.util.base64ToUint8Array(`T${String.fromCodePoint(0xfeff)}Q`), "byte order mark").toThrow();
+});
+
+// ============================================================================
 // base64urlToBytes
 // ============================================================================
 

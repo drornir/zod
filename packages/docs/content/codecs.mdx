@@ -488,6 +488,8 @@ bytesToUtf8.encode("Hello, 世界!");  // => Uint8Array
 
 Converts base64 strings to `Uint8Array` byte arrays and vice versa.
 
+If you want JavaScript-compatible base64 validation semantics, use `z.base64JS()` for the string schema itself. The codec examples below keep `z.base64()` and `z.base64url()` so they continue to match the current `z.util` decoding helpers exactly.
+
 ```ts
 const base64ToBytes = z.codec(z.base64(), z.instanceof(Uint8Array), {
   decode: (base64String) => z.util.base64ToUint8Array(base64String),
@@ -496,6 +498,35 @@ const base64ToBytes = z.codec(z.base64(), z.instanceof(Uint8Array), {
 
 base64ToBytes.decode("SGVsbG8=");  // => Uint8Array([72, 101, 108, 108, 111])
 base64ToBytes.encode(bytes);       // => "SGVsbG8="
+```
+
+For JavaScript-compatible base64 decoding semantics, use `z.base64JS()`:
+
+```ts
+const base64JSToBytes = z.codec(z.base64JS(), z.instanceof(Uint8Array), {
+  decode: (base64String) => z.util.base64ToUint8Array(base64String),
+  encode: (bytes) => z.util.uint8ArrayToBase64(bytes),
+});
+
+base64JSToBytes.decode("T\nQ");  // => Uint8Array([77])
+base64JSToBytes.decode("TR");    // => Uint8Array([77])
+base64JSToBytes.encode(bytes);   // => "TQ=="
+```
+
+Loose decoding is intentionally non-canonical on input. For example, decoding `"TR"` succeeds, but re-encoding the resulting bytes still produces the canonical `"TQ=="`.
+
+### `base64JSURLToBytes`
+
+Uses `z.base64JS({ alphabet: "base64url" })` when you want the JS-compatible option defaults with the URL-safe alphabet.
+
+```ts
+const base64JSURLToBytes = z.codec(z.base64JS({ alphabet: "base64url" }), z.instanceof(Uint8Array), {
+  decode: (base64String) => z.util.base64urlToUint8Array(base64String),
+  encode: (bytes) => z.util.uint8ArrayToBase64url(bytes),
+});
+
+base64JSURLToBytes.decode("SGVsbG8");  // => Uint8Array([72, 101, 108, 108, 111])
+base64JSURLToBytes.encode(bytes);      // => "SGVsbG8"
 ```
 
 ### `base64urlToBytes`

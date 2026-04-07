@@ -362,6 +362,8 @@ These schemas are supported via `contentEncoding`:
 
 ```ts
 z.base64(); // => { type: "string", contentEncoding: "base64" }
+z.base64JS(); // => { type: "string", format: "base64", contentEncoding: "base64" }
+z.base64JS({ alphabet: "base64url" }); // => { type: "string", format: "base64url", contentEncoding: "base64url" }
 ```
 
 All other string formats are supported via `pattern`:
