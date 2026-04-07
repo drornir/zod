@@ -213,6 +213,7 @@ test("base64 validations", () => {
     "12345", // Not padded correctly, not a multiple of 4 characters
     "SGVsbG8gV29ybGQ", // Missing padding
     "VGhpcyBpcyBhbiBlbmNvZGVkIHN0cmluZw", // Missing padding
+    "T\nQ==", // Whitespace is not accepted by default
     "!UGF0aWVuY2UgaXMgdGhlIGtleSB0byBzdWNjZXNz", // Invalid character '!'
     "?QmFzZTY0IGVuY29kaW5nIGlzIGZ1bg==", // Invalid character '?'
     ".MTIzND2Nzg5MC4=", // Invalid character '.'
@@ -258,6 +259,7 @@ test("base64url validations", () => {
     "w7/Dv8O+w74K", // Has + and / characters (is base64)
     "12345", // Invalid length (not a multiple of 4 characters when adding allowed number of padding characters)
     "12345===", // Not padded correctly
+    "SGV\nsbG8", // Whitespace is not accepted by default
     "!UGF0aWVuY2UgaXMgdGhlIGtleSB0byBzdWNjZXNz", // Invalid character '!'
     "?QmFzZTY0IGVuY29kaW5nIGlzIGZ1bg==", // Invalid character '?'
     ".MTIzND2Nzg5MC4=", // Invalid character '.'

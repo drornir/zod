@@ -393,8 +393,7 @@ export interface $ZodBase64Config {
   alphabet: $ZodBase64Alphabet;
   padding: $ZodBase64Padding;
   lastChunkHandling: $ZodBase64LastChunkHandling;
-  trimWhitespace?: boolean;
-  stripWhitespace?: boolean;
+  ignoreWhitespace?: boolean;
 }
 
 export const $ZodStringFormat: core.$constructor<$ZodStringFormat> = /*@__PURE__*/ core.$constructor(
@@ -918,8 +917,7 @@ export interface $ZodBase64Def extends $ZodStringFormatDef<"base64"> {
   alphabet: "base64";
   padding: $ZodBase64Padding;
   lastChunkHandling: $ZodBase64LastChunkHandling;
-  trimWhitespace: boolean;
-  stripWhitespace: boolean;
+  ignoreWhitespace: boolean;
 }
 export interface $ZodBase64Internals extends $ZodStringFormatInternals<"base64"> {
   def: $ZodBase64Def;
@@ -965,8 +963,7 @@ export interface $ZodBase64URLDef extends $ZodStringFormatDef<"base64url"> {
   alphabet: "base64url";
   padding: $ZodBase64Padding;
   lastChunkHandling: $ZodBase64LastChunkHandling;
-  trimWhitespace: boolean;
-  stripWhitespace: boolean;
+  ignoreWhitespace: boolean;
 }
 export interface $ZodBase64URLInternals extends $ZodStringFormatInternals<"base64url"> {
   def: $ZodBase64URLDef;

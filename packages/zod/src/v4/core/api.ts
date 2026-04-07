@@ -434,8 +434,7 @@ export function _base64<T extends schemas.$ZodBase64>(
     alphabet: "base64",
     padding: typeof params === "string" ? "require" : (params?.padding ?? "require"),
     lastChunkHandling: typeof params === "string" ? "loose" : (params?.lastChunkHandling ?? "loose"),
-    trimWhitespace: typeof params === "string" ? false : (params?.trimWhitespace ?? false),
-    stripWhitespace: typeof params === "string" ? false : (params?.stripWhitespace ?? false),
+    ignoreWhitespace: typeof params === "string" ? false : (params?.ignoreWhitespace ?? false),
   });
 }
 
@@ -456,8 +455,7 @@ export function _base64url<T extends schemas.$ZodBase64URL>(
     alphabet: "base64url",
     padding: typeof params === "string" ? "forbid" : (params?.padding ?? "forbid"),
     lastChunkHandling: typeof params === "string" ? "loose" : (params?.lastChunkHandling ?? "loose"),
-    trimWhitespace: typeof params === "string" ? false : (params?.trimWhitespace ?? false),
-    stripWhitespace: typeof params === "string" ? false : (params?.stripWhitespace ?? false),
+    ignoreWhitespace: typeof params === "string" ? false : (params?.ignoreWhitespace ?? false),
   });
 }
 
@@ -478,8 +476,7 @@ export function _base64JS<T extends schemas.$ZodBase64JS>(
     alphabet,
     padding: typeof params === "string" ? "allow" : (params?.padding ?? "allow"),
     lastChunkHandling: typeof params === "string" ? "loose" : (params?.lastChunkHandling ?? "loose"),
-    trimWhitespace: typeof params === "string" ? true : (params?.trimWhitespace ?? true),
-    stripWhitespace: typeof params === "string" ? true : (params?.stripWhitespace ?? true),
+    ignoreWhitespace: typeof params === "string" ? true : (params?.ignoreWhitespace ?? true),
     ...(alphabet === "base64" ? { format: "base64" } : {}),
   } as T["_zod"]["def"]);
 }
