@@ -281,9 +281,41 @@ test("z.base64", () => {
   // invalid base64
   expect(() => z.parse(a, "SGVsbG8gd29ybGQ")).toThrow();
   expect(() => z.parse(a, "U29tZSBvdGhlciBzdHJpbmc")).toThrow();
+  expect(() => z.parse(a, "T\nQ==")).toThrow();
   expect(() => z.parse(a, "hello")).toThrow();
   // wrong type
   expect(() => z.parse(a, 123)).toThrow();
+});
+
+test("z.base64JS", () => {
+  const a = z.base64JS();
+  expect(z.parse(a, "TQ")).toEqual("TQ");
+  expect(z.parse(a, "TR")).toEqual("TR");
+  expect(z.parse(a, "T\nR")).toEqual("T\nR");
+  expect(() => z.parse(a, "TR=")).toThrow();
+
+  const strict = z.base64JS({ lastChunkHandling: "strict" });
+  expect(() => z.parse(strict, "TR")).toThrow();
+
+  const base64url = z.base64JS({ alphabet: "base64url" });
+  expect(z.parse(base64url, "SGVsbG8")).toEqual("SGVsbG8");
+  expect(z.parse(base64url, "SGVsbG8=")).toEqual("SGVsbG8=");
+  expect(() => z.parse(base64url, "SGVsbG8+")).toThrow();
+});
+
+test("z.base64 options", () => {
+  expect(z.parse(z.base64({ padding: "allow" }), "TQ")).toEqual("TQ");
+  expect(() => z.parse(z.base64({ padding: "forbid" }), "TQ==")).toThrow();
+  expect(() => z.parse(z.base64({ lastChunkHandling: "strict" }), "TQ")).toThrow();
+  expect(z.parse(z.base64({ ignoreWhitespace: true, padding: "allow" }), "T\nQ")).toEqual("T\nQ");
+});
+
+test("z.base64url options", () => {
+  expect(() => z.parse(z.base64url(), "SGV\nsbG8")).toThrow();
+  expect(z.parse(z.base64url({ padding: "allow" }), "SGVsbG8=")).toEqual("SGVsbG8=");
+  expect(() => z.parse(z.base64url({ padding: "require" }), "SGVsbG8")).toThrow();
+  expect(() => z.parse(z.base64url({ lastChunkHandling: "strict", padding: "allow" }), "TQ")).toThrow();
+  expect(z.parse(z.base64url({ ignoreWhitespace: true, padding: "allow" }), "SGV\nsbG8=")).toEqual("SGV\nsbG8=");
 });
 
 // test("z.jsonString", () => {

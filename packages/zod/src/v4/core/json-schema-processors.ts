@@ -15,6 +15,7 @@ import {
 import { getEnumValues } from "./util.js";
 
 const formatMap: Partial<Record<checks.$ZodStringFormats, string | undefined>> = {
+  base64url: "",
   guid: "uuid",
   url: "uri",
   datetime: "date-time",

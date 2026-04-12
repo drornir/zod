@@ -187,6 +187,10 @@ export type SafeParseError<T> = {
 export type PropValues = Record<string, Set<Primitive>>;
 export type PrimitiveSet = Set<Primitive>;
 
+const base64PaddingCharCode = "=".charCodeAt(0);
+const strictBase64LastTwo = "AQgw";
+const strictBase64LastThree = "AEIMQUYcgkosw048";
+
 // functions
 export function assertEqual<A, B>(val: AssertEqual<A, B>): AssertEqual<A, B> {
   return val;
@@ -926,9 +930,62 @@ export function cleanEnum(obj: Record<string, EnumValue>): EnumValue[] {
     .map((el) => el[1]);
 }
 
-// Codec utility functions
-export function base64ToUint8Array(base64: string): InstanceType<typeof Uint8Array> {
-  const binaryString = atob(base64);
+function getBase64CharClass(alphabet: schemas.$ZodBase64Alphabet): string {
+  return alphabet === "base64" ? "A-Za-z0-9+/" : "A-Za-z0-9_-";
+}
+
+function getBase64FinalChunkSource(
+  body: string,
+  padding: schemas.$ZodBase64Padding,
+  lastChunkHandling: schemas.$ZodBase64LastChunkHandling
+): string {
+  if (lastChunkHandling === "strict") {
+    if (padding === "forbid") return "";
+    return `(?:${body}[${strictBase64LastTwo}]==|${body}{2}[${strictBase64LastThree}]=)?`;
+  }
+
+  const twoChars = `${body}{2}`;
+  const threeChars = `${body}{3}`;
+  if (padding === "require") {
+    return `(?:${twoChars}==|${threeChars}=)?`;
+  }
+  if (padding === "allow") {
+    return `(?:${twoChars}(?:==)?|${threeChars}=?)?`;
+  }
+  return `(?:${twoChars}|${threeChars})?`;
+}
+
+type NativeBase64Decoder = (
+  data: string,
+  options?: {
+    alphabet?: schemas.$ZodBase64Alphabet;
+    lastChunkHandling?: schemas.$ZodBase64LastChunkHandling;
+  }
+) => InstanceType<typeof Uint8Array>;
+
+type NativeBase64Encoder = (options?: {
+  alphabet?: schemas.$ZodBase64Alphabet;
+  omitPadding?: boolean;
+}) => string;
+
+type Base64ValidationParams = schemas.$ZodBase64Config;
+
+type Base64Scan = {
+  hasPadding: boolean;
+  paddingCount: number;
+  payloadLength: number;
+  trailingChunk: string;
+};
+
+function hasUint8ArrayFromBase64(): boolean {
+  return (
+    typeof Uint8Array !== "undefined" &&
+    typeof (Uint8Array as Uint8ArrayConstructor & { fromBase64?: NativeBase64Decoder }).fromBase64 === "function"
+  );
+}
+
+function binaryStringToUint8Array(binaryString: string): InstanceType<typeof Uint8Array> {
+  // `atob()` decodes to a binary string, so each code unit maps directly to one byte.
   const bytes = new Uint8Array(binaryString.length);
   for (let i = 0; i < binaryString.length; i++) {
     bytes[i] = binaryString.charCodeAt(i);
@@ -936,22 +993,237 @@ export function base64ToUint8Array(base64: string): InstanceType<typeof Uint8Arr
   return bytes;
 }
 
-export function uint8ArrayToBase64(bytes: Uint8Array): string {
+export function base64PatternSource(params: {
+  alphabet: schemas.$ZodBase64Alphabet;
+  padding: schemas.$ZodBase64Padding;
+  lastChunkHandling: schemas.$ZodBase64LastChunkHandling;
+}): string {
+  const body = `[${getBase64CharClass(params.alphabet)}]`;
+  return `(?:${body}{4})*${getBase64FinalChunkSource(body, params.padding, params.lastChunkHandling)}`;
+}
+
+export function base64Pattern(params: {
+  alphabet: schemas.$ZodBase64Alphabet;
+  padding: schemas.$ZodBase64Padding;
+  lastChunkHandling: schemas.$ZodBase64LastChunkHandling;
+}): RegExp {
+  return new RegExp(`^${base64PatternSource(params)}$`);
+}
+
+function isBase64Whitespace(code: number): boolean {
+  const Space = 0x20;
+  const Tab = 0x09;
+  const LineFeed = 0x0a;
+  const CarriageReturn = 0x0d;
+  const FormFeed = 0x0c;
+  return code === Space || code === Tab || code === LineFeed || code === CarriageReturn || code === FormFeed;
+}
+
+function isAlphaNumeric(code: number): boolean {
+  const Zero = 0x30;
+  const Nine = 0x39;
+  const A = 0x41;
+  const Z = 0x5a;
+  const a = 0x61;
+  const z = 0x7a;
+  return (
+    (code >= Zero && code <= Nine) ||
+    (code >= A && code <= Z) ||
+    (code >= a && code <= z)
+  );
+}
+
+function isBase64AlphabetChar(char: string, alphabet: schemas.$ZodBase64Alphabet): boolean {
+  const code = char.charCodeAt(0);
+  if (isAlphaNumeric(code)) return true;
+  return alphabet === "base64" ? char === "+" || char === "/" : char === "-" || char === "_";
+}
+
+function scanBase64String(data: string, params: Base64ValidationParams): Base64Scan | null {
+  let hasPadding = false;
+  let paddingCount = 0;
+  let payloadLength = 0;
+  let sawPadding = false;
+  let trailingChunk = "";
+
+  for (let i = 0; i < data.length; i++) {
+    const char = data[i]!;
+    const code = char.charCodeAt(0);
+
+    if (isBase64Whitespace(code)) {
+      if (params.ignoreWhitespace) continue;
+      return null;
+    }
+
+    if (code === base64PaddingCharCode) {
+      hasPadding = true;
+      sawPadding = true;
+      paddingCount++;
+      if (paddingCount > 2) return null;
+      trailingChunk = `${trailingChunk}${char}`.slice(-4);
+      continue;
+    }
+
+    if (sawPadding || !isBase64AlphabetChar(char, params.alphabet)) return null;
+    payloadLength++;
+    trailingChunk = `${trailingChunk}${char}`.slice(-4);
+  }
+
+  return { hasPadding, paddingCount, payloadLength, trailingChunk };
+}
+
+function replaceStringCharacter(data: string, search: string, replace: string): string {
+  if (!data.includes(search)) return data;
+  if (hasStringReplaceAll()) {
+    const dataWithReplaceAll = data as string & { replaceAll(search: string, replace: string): string };
+    return dataWithReplaceAll.replaceAll(search, replace);
+  }
+
+  if (search === "+") return data.replace(/\+/g, replace);
+  if (search === "/") return data.replace(/\//g, replace);
+  if (search === "-") return data.replace(/-/g, replace);
+  if (search === "_") return data.replace(/_/g, replace);
+  return data;
+}
+
+function hasStringReplaceAll(): boolean {
+  return typeof (String.prototype as String & { replaceAll?: unknown }).replaceAll === "function";
+}
+
+function getParsedBase64TailBytes(parsed: string | Uint8Array, count: number): Uint8Array {
+  if (parsed instanceof Uint8Array) {
+    return parsed.subarray(parsed.length - count);
+  }
+
+  const bytes = new Uint8Array(count);
+  for (let i = 0; i < count; i++) {
+    bytes[i] = parsed.charCodeAt(parsed.length - count + i);
+  }
+  return bytes;
+}
+
+function encodeBase64Chunk(
+  bytes: Uint8Array,
+  alphabet: schemas.$ZodBase64Alphabet,
+  omitPadding = false
+): string {
+  const bytesWithBase64 = bytes as Uint8Array & {
+    toBase64?: NativeBase64Encoder;
+  };
+  if (typeof bytesWithBase64.toBase64 === "function") {
+    return bytesWithBase64.toBase64({
+      alphabet,
+      ...(omitPadding ? { omitPadding: true } : {}),
+    });
+  }
+
   let binaryString = "";
   for (let i = 0; i < bytes.length; i++) {
     binaryString += String.fromCharCode(bytes[i]);
   }
-  return btoa(binaryString);
+
+  const base64 = btoa(binaryString);
+  const encoded = alphabet === "base64" ? base64 : base64ToBase64url(base64);
+  return omitPadding ? trimBase64Padding(encoded) : encoded;
+}
+
+function needsCanonicalBase64Padding(parsed: string | Uint8Array): boolean {
+  const remainder = parsed.length % 3;
+  if (remainder === 0) return false;
+  const tail = getParsedBase64TailBytes(parsed, remainder);
+  return encodeBase64Chunk(tail, "base64").endsWith("=");
+}
+
+function hasStrictBase64Tail(parsed: string | Uint8Array, scan: Base64Scan, params: Base64ValidationParams): boolean {
+  if (scan.paddingCount === 0) return scan.payloadLength % 4 === 0;
+
+  const tailByteCount = scan.paddingCount === 2 ? 1 : 2;
+  const canonicalTail = encodeBase64Chunk(getParsedBase64TailBytes(parsed, tailByteCount), params.alphabet);
+  return scan.trailingChunk === canonicalTail;
+}
+
+function parseBase64(data: string, params: Base64ValidationParams): string | Uint8Array | null {
+  try {
+    if (hasUint8ArrayFromBase64()) {
+      const Uint8ArrayWithBase64 = Uint8Array as Uint8ArrayConstructor & {
+        fromBase64?: NativeBase64Decoder;
+      };
+      return Uint8ArrayWithBase64.fromBase64!(data, {
+        alphabet: params.alphabet,
+        lastChunkHandling: params.lastChunkHandling,
+      });
+    }
+
+    const base64 = params.alphabet === "base64url" ? base64urlToBase64(data) : data;
+    return atob(base64);
+  } catch {
+    return null;
+  }
+}
+
+export function isBase64String(data: string, params: Base64ValidationParams): boolean {
+  const scan = scanBase64String(data, params);
+  if (scan === null) return false;
+  if (params.padding === "forbid" && scan.hasPadding) return false;
+
+  const parsed = parseBase64(data, params);
+  if (parsed === null) return false;
+  if (params.padding === "require" && scan.paddingCount === 0 && needsCanonicalBase64Padding(parsed)) return false;
+  if (!hasUint8ArrayFromBase64() && params.lastChunkHandling === "strict" && !hasStrictBase64Tail(parsed, scan, params)) {
+    return false;
+  }
+
+  return true;
+}
+
+function base64urlToBase64(base64url: string): string {
+  return replaceStringCharacter(replaceStringCharacter(base64url, "-", "+"), "_", "/");
+}
+
+function base64ToBase64url(base64: string): string {
+  return replaceStringCharacter(replaceStringCharacter(base64, "+", "-"), "/", "_");
+}
+
+function trimBase64Padding(base64: string): string {
+  if (base64.endsWith("==")) return base64.slice(0, -2);
+  if (base64.endsWith("=")) return base64.slice(0, -1);
+  return base64;
+}
+
+function decodeBase64ToUint8Array(
+  data: string,
+  alphabet: schemas.$ZodBase64Alphabet
+): InstanceType<typeof Uint8Array> {
+  if (hasUint8ArrayFromBase64()) {
+    const Uint8ArrayWithBase64 = Uint8Array as Uint8ArrayConstructor & {
+      fromBase64?: NativeBase64Decoder;
+    };
+    return Uint8ArrayWithBase64.fromBase64!(data, { alphabet });
+  }
+
+  const base64 = alphabet === "base64url" ? base64urlToBase64(data) : data;
+  return binaryStringToUint8Array(atob(base64));
+}
+
+function encodeUint8ArrayToBase64(bytes: Uint8Array, alphabet: schemas.$ZodBase64Alphabet): string {
+  return encodeBase64Chunk(bytes, alphabet, alphabet === "base64url");
+}
+
+// Codec utility functions
+export function base64ToUint8Array(base64: string): InstanceType<typeof Uint8Array> {
+  return decodeBase64ToUint8Array(base64, "base64");
+}
+
+export function uint8ArrayToBase64(bytes: Uint8Array): string {
+  return encodeUint8ArrayToBase64(bytes, "base64");
 }
 
 export function base64urlToUint8Array(base64url: string): InstanceType<typeof Uint8Array> {
-  const base64 = base64url.replace(/-/g, "+").replace(/_/g, "/");
-  const padding = "=".repeat((4 - (base64.length % 4)) % 4);
-  return base64ToUint8Array(base64 + padding);
+  return decodeBase64ToUint8Array(base64url, "base64url");
 }
 
 export function uint8ArrayToBase64url(bytes: Uint8Array): string {
-  return uint8ArrayToBase64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
+  return encodeUint8ArrayToBase64(bytes, "base64url");
 }
 
 export function hexToUint8Array(hex: string): InstanceType<typeof Uint8Array> {

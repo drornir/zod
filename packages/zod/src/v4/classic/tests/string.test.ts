@@ -213,6 +213,7 @@ test("base64 validations", () => {
     "12345", // Not padded correctly, not a multiple of 4 characters
     "SGVsbG8gV29ybGQ", // Missing padding
     "VGhpcyBpcyBhbiBlbmNvZGVkIHN0cmluZw", // Missing padding
+    "T\nQ==", // Whitespace is not accepted by default
     "!UGF0aWVuY2UgaXMgdGhlIGtleSB0byBzdWNjZXNz", // Invalid character '!'
     "?QmFzZTY0IGVuY29kaW5nIGlzIGZ1bg==", // Invalid character '?'
     ".MTIzND2Nzg5MC4=", // Invalid character '.'
@@ -258,6 +259,7 @@ test("base64url validations", () => {
     "w7/Dv8O+w74K", // Has + and / characters (is base64)
     "12345", // Invalid length (not a multiple of 4 characters when adding allowed number of padding characters)
     "12345===", // Not padded correctly
+    "SGV\nsbG8", // Whitespace is not accepted by default
     "!UGF0aWVuY2UgaXMgdGhlIGtleSB0byBzdWNjZXNz", // Invalid character '!'
     "?QmFzZTY0IGVuY29kaW5nIGlzIGZ1bg==", // Invalid character '?'
     ".MTIzND2Nzg5MC4=", // Invalid character '.'
@@ -276,6 +278,73 @@ test("base64url validations", () => {
   for (const str of invalidBase64URLStrings) {
     expect(str + base64url.safeParse(str).success).toBe(`${str}false`);
   }
+});
+
+test("base64 option validations", () => {
+  const allowPadding = z.base64({ padding: "allow" });
+  expect(allowPadding.parse("TQ")).toBe("TQ");
+
+  const forbidPadding = z.base64({ padding: "forbid" });
+  expect(forbidPadding.parse("TQ")).toBe("TQ");
+  expect(() => forbidPadding.parse("TQ==")).toThrow();
+
+  const strict = z.base64({ lastChunkHandling: "strict" });
+  expect(strict.parse("TQ==")).toBe("TQ==");
+  expect(() => strict.parse("TQ")).toThrow();
+  expect(() => strict.parse("TR==")).toThrow();
+
+  const ignoreWhitespace = z.base64({ padding: "allow", ignoreWhitespace: true });
+  expect(ignoreWhitespace.parse(" \nTQ\t ")).toBe(" \nTQ\t ");
+  expect(ignoreWhitespace.parse("T Q")).toBe("T Q");
+  expect(() => ignoreWhitespace.parse("T\n?")).toThrow();
+
+  const strictIgnoreWhitespace = z.base64({ padding: "allow", lastChunkHandling: "strict", ignoreWhitespace: true });
+  expect(strictIgnoreWhitespace.parse("QUJD TQ==")).toBe("QUJD TQ==");
+  expect(() => strictIgnoreWhitespace.parse("QUJD TR==")).toThrow();
+});
+
+test("base64url option validations", () => {
+  const allowPadding = z.base64url({ padding: "allow" });
+  expect(allowPadding.parse("SGVsbG8=")).toBe("SGVsbG8=");
+
+  const requirePadding = z.base64url({ padding: "require" });
+  expect(requirePadding.parse("SGVsbG8=")).toBe("SGVsbG8=");
+  expect(() => requirePadding.parse("SGVsbG8")).toThrow();
+
+  const strict = z.base64url({ padding: "allow", lastChunkHandling: "strict" });
+  expect(strict.parse("TQ==")).toBe("TQ==");
+  expect(() => strict.parse("TQ")).toThrow();
+  expect(() => strict.parse("TR==")).toThrow();
+
+  const ignoreWhitespace = z.base64url({ padding: "allow", ignoreWhitespace: true });
+  expect(ignoreWhitespace.parse(" \nSGVsbG8=\t ")).toBe(" \nSGVsbG8=\t ");
+  expect(ignoreWhitespace.parse("SG Vs bG8=")).toBe("SG Vs bG8=");
+  expect(() => ignoreWhitespace.parse("SGVsbG8+")).toThrow();
+
+  const strictIgnoreWhitespace = z.base64url({ padding: "allow", lastChunkHandling: "strict", ignoreWhitespace: true });
+  expect(strictIgnoreWhitespace.parse("QUJD TQ==")).toBe("QUJD TQ==");
+  expect(() => strictIgnoreWhitespace.parse("QUJD TR==")).toThrow();
+});
+
+test("base64JS validations", () => {
+  const base64js = z.base64JS();
+  expect(base64js.parse("TQ")).toBe("TQ");
+  expect(base64js.parse("TR")).toBe("TR");
+  expect(base64js.parse("TR==")).toBe("TR==");
+  expect(base64js.parse("T\nR")).toBe("T\nR");
+  expect(base64js.parse("\n\nT\nR\n\n")).toBe("\n\nT\nR\n\n");
+  expect(() => base64js.parse("TR=")).toThrow();
+
+  const strict = z.base64JS({ lastChunkHandling: "strict" });
+  expect(strict.parse("TQ==")).toBe("TQ==");
+  expect(() => strict.parse("TR")).toThrow();
+
+  const base64url = z.base64JS({ alphabet: "base64url" });
+  expect(base64url.parse("SGVsbG8")).toBe("SGVsbG8");
+  expect(base64url.parse("SGVsbG8=")).toBe("SGVsbG8=");
+  expect(() => base64url.parse("SGVsbG8+")).toThrow();
+
+  expect(z.string().base64JS().parse("TQ")).toBe("TQ");
 });
 
 test("big base64 and base64url", () => {
@@ -790,6 +859,8 @@ test("format", () => {
   expect(z.string().cuid2().format).toEqual("cuid2");
   expect(z.string().ulid().format).toEqual("ulid");
   expect(z.string().base64().format).toEqual("base64");
+  expect(z.base64JS().format).toEqual("base64");
+  expect(z.base64JS({ alphabet: "base64url" }).format).toBeNull();
   // expect(z.string().jsonString().format).toEqual("json_string");
   // expect(z.string().json().format).toEqual("json_string");
   expect(z.string().xid().format).toEqual("xid");

@@ -436,6 +436,22 @@ export function base64url(params?: string | core.$ZodBase64URLParams): ZodMiniBa
   return core._base64url(ZodMiniBase64URL, params);
 }
 
+// ZodMiniBase64JS
+export interface ZodMiniBase64JS extends _ZodMiniString<core.$ZodBase64JSInternals> {
+  // _zod: core.$ZodBase64JSInternals;
+}
+export const ZodMiniBase64JS: core.$constructor<ZodMiniBase64JS> = /*@__PURE__*/ core.$constructor(
+  "ZodMiniBase64JS",
+  (inst, def) => {
+    core.$ZodBase64JS.init(inst, def);
+    ZodMiniStringFormat.init(inst, def);
+  }
+);
+// @__NO_SIDE_EFFECTS__
+export function base64JS(params?: string | core.$ZodBase64JSParams): ZodMiniBase64JS {
+  return core._base64JS(ZodMiniBase64JS, params);
+}
+
 // ZodMiniE164
 export interface ZodMiniE164 extends _ZodMiniString<core.$ZodE164Internals> {
   // _zod: core.$ZodE164Internals;

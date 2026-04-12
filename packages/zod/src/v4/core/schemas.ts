@@ -386,6 +386,16 @@ export interface $ZodStringFormat<Format extends string = string> extends $ZodTy
   _zod: $ZodStringFormatInternals<Format>;
 }
 
+export type $ZodBase64Alphabet = "base64" | "base64url";
+export type $ZodBase64Padding = "forbid" | "allow" | "require";
+export type $ZodBase64LastChunkHandling = "strict" | "loose";
+export interface $ZodBase64Config {
+  alphabet: $ZodBase64Alphabet;
+  padding: $ZodBase64Padding;
+  lastChunkHandling: $ZodBase64LastChunkHandling;
+  ignoreWhitespace?: boolean;
+}
+
 export const $ZodStringFormat: core.$constructor<$ZodStringFormat> = /*@__PURE__*/ core.$constructor(
   "$ZodStringFormat",
   (inst, def): void => {
@@ -885,20 +895,33 @@ export const $ZodCIDRv6: core.$constructor<$ZodCIDRv6> = /*@__PURE__*/ core.$con
 );
 
 //////////////////////////////   ZodBase64   //////////////////////////////
-export function isValidBase64(data: string): boolean {
-  if (data === "") return true;
-  if (data.length % 4 !== 0) return false;
-  try {
-    // @ts-ignore
-    atob(data);
-    return true;
-  } catch {
-    return false;
-  }
+const defaultBase64Config: $ZodBase64Config = {
+  alphabet: "base64",
+  padding: "require",
+  lastChunkHandling: "loose",
+};
+
+const defaultBase64URLConfig: $ZodBase64Config = {
+  alphabet: "base64url",
+  padding: "forbid",
+  lastChunkHandling: "loose",
+};
+
+export type $ZodBase64ValidationParams = Partial<Omit<$ZodBase64Config, "alphabet">>;
+
+export function isValidBase64(data: string, params?: $ZodBase64ValidationParams): boolean {
+  return util.isBase64String(data, { ...defaultBase64Config, ...params });
 }
 
-export interface $ZodBase64Def extends $ZodStringFormatDef<"base64"> {}
-export interface $ZodBase64Internals extends $ZodStringFormatInternals<"base64"> {}
+export interface $ZodBase64Def extends $ZodStringFormatDef<"base64"> {
+  alphabet: "base64";
+  padding: $ZodBase64Padding;
+  lastChunkHandling: $ZodBase64LastChunkHandling;
+  ignoreWhitespace: boolean;
+}
+export interface $ZodBase64Internals extends $ZodStringFormatInternals<"base64"> {
+  def: $ZodBase64Def;
+}
 
 export interface $ZodBase64 extends $ZodType {
   _zod: $ZodBase64Internals;
@@ -907,13 +930,16 @@ export interface $ZodBase64 extends $ZodType {
 export const $ZodBase64: core.$constructor<$ZodBase64> = /*@__PURE__*/ core.$constructor(
   "$ZodBase64",
   (inst, def): void => {
-    def.pattern ??= regexes.base64;
+    def.pattern ??= regexes.base64Pattern(def);
     $ZodStringFormat.init(inst, def);
 
     inst._zod.bag.contentEncoding = "base64";
+    inst._zod.onattach.push((schema) => {
+      schema._zod.bag.contentEncoding = "base64";
+    });
 
     inst._zod.check = (payload) => {
-      if (isValidBase64(payload.value)) return;
+      if (util.isBase64String(payload.value, def)) return;
 
       payload.issues.push({
         code: "invalid_format",
@@ -927,15 +953,21 @@ export const $ZodBase64: core.$constructor<$ZodBase64> = /*@__PURE__*/ core.$con
 );
 
 //////////////////////////////   ZodBase64   //////////////////////////////
-export function isValidBase64URL(data: string): boolean {
-  if (!regexes.base64url.test(data)) return false;
-  const base64 = data.replace(/[-_]/g, (c) => (c === "-" ? "+" : "/"));
-  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, "=");
-  return isValidBase64(padded);
+export type $ZodBase64URLValidationParams = Partial<Omit<$ZodBase64Config, "alphabet">>;
+
+export function isValidBase64URL(data: string, params?: $ZodBase64URLValidationParams): boolean {
+  return util.isBase64String(data, { ...defaultBase64URLConfig, ...params });
 }
 
-export interface $ZodBase64URLDef extends $ZodStringFormatDef<"base64url"> {}
-export interface $ZodBase64URLInternals extends $ZodStringFormatInternals<"base64url"> {}
+export interface $ZodBase64URLDef extends $ZodStringFormatDef<"base64url"> {
+  alphabet: "base64url";
+  padding: $ZodBase64Padding;
+  lastChunkHandling: $ZodBase64LastChunkHandling;
+  ignoreWhitespace: boolean;
+}
+export interface $ZodBase64URLInternals extends $ZodStringFormatInternals<"base64url"> {
+  def: $ZodBase64URLDef;
+}
 
 export interface $ZodBase64URL extends $ZodType {
   _zod: $ZodBase64URLInternals;
@@ -944,17 +976,59 @@ export interface $ZodBase64URL extends $ZodType {
 export const $ZodBase64URL: core.$constructor<$ZodBase64URL> = /*@__PURE__*/ core.$constructor(
   "$ZodBase64URL",
   (inst, def): void => {
-    def.pattern ??= regexes.base64url;
+    def.pattern ??= regexes.base64Pattern(def);
     $ZodStringFormat.init(inst, def);
 
-    inst._zod.bag.contentEncoding = "base64url";
-
     inst._zod.check = (payload) => {
-      if (isValidBase64URL(payload.value)) return;
+      if (util.isBase64String(payload.value, def)) return;
 
       payload.issues.push({
         code: "invalid_format",
         format: "base64url",
+        input: payload.value,
+        inst,
+        continue: !def.abort,
+      });
+    };
+  }
+);
+
+//////////////////////////////   ZodBase64JS   //////////////////////////////
+export interface $ZodBase64JSDef extends $ZodStringFormatDef<$ZodBase64Alphabet>, $ZodBase64Config {}
+export interface $ZodBase64JSInternals extends $ZodStringFormatInternals<$ZodBase64Alphabet> {
+  def: $ZodBase64JSDef;
+}
+
+export interface $ZodBase64JS extends $ZodType {
+  _zod: $ZodBase64JSInternals;
+}
+
+export const $ZodBase64JS: core.$constructor<$ZodBase64JS> = /*@__PURE__*/ core.$constructor(
+  "$ZodBase64JS",
+  (inst, def): void => {
+    def.pattern ??= regexes.base64Pattern(def);
+    $ZodStringFormat.init(inst, def);
+
+    if (def.alphabet !== "base64") {
+      delete inst._zod.bag.format;
+      inst._zod.onattach.push((schema) => {
+        delete schema._zod.bag.format;
+      });
+    }
+
+    if (def.alphabet === "base64") {
+      inst._zod.bag.contentEncoding = "base64";
+      inst._zod.onattach.push((schema) => {
+        schema._zod.bag.contentEncoding = "base64";
+      });
+    }
+
+    inst._zod.check = (payload) => {
+      if (util.isBase64String(payload.value, def)) return;
+
+      payload.issues.push({
+        code: "invalid_format",
+        format: def.alphabet,
         input: payload.value,
         inst,
         continue: !def.abort,

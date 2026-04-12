@@ -104,6 +104,10 @@ describe("toJSONSchema method", () => {
       expectMethodMatch(z.base64());
     });
 
+    test("base64JS", () => {
+      expectMethodMatch(z.base64JS());
+    });
+
     test("ipv4", () => {
       expectMethodMatch(z.ipv4());
     });

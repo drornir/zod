@@ -358,16 +358,18 @@ z.guid(); // => { type: "string", format: "uuid" }
 z.url(); // => { type: "string", format: "uri" }
 ```
 
-These schemas are supported via `contentEncoding`:
+These schemas are supported via standard base64 JSON Schema metadata:
 
 ```ts
-z.base64(); // => { type: "string", contentEncoding: "base64" }
+z.base64(); // => { type: "string", format: "base64", contentEncoding: "base64" }
+z.base64JS(); // => { type: "string", format: "base64", contentEncoding: "base64" }
 ```
 
 All other string formats are supported via `pattern`:
 
 ```ts
 z.base64url();
+z.base64JS({ alphabet: "base64url" });
 z.cuid();
 z.emoji();
 z.nanoid();
@@ -377,6 +379,8 @@ z.cidrv4();
 z.cidrv6();
 z.mac();
 ```
+
+For `z.base64()`, `z.base64url()`, and `z.base64JS()`, the emitted `pattern` changes to match the selected padding and last-chunk options. Standard JSON Schema metadata is only emitted for the standard base64 encoding.
 
 ### Numeric types
 

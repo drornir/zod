@@ -352,6 +352,8 @@ export interface ZodString extends _ZodString<core.$ZodStringInternals<string>> 
   base64(params?: string | core.$ZodCheckBase64Params): this;
   /** @deprecated Use `z.base64url()` instead. */
   base64url(params?: string | core.$ZodCheckBase64URLParams): this;
+  /** @deprecated Use `z.base64JS()` instead. */
+  base64JS(params?: string | core.$ZodCheckBase64JSParams): this;
   // /** @deprecated Use `z.jsonString()` instead. */
   // jsonString(params?: string | core.$ZodCheckJSONStringParams): this;
   /** @deprecated Use `z.xid()` instead. */
@@ -410,6 +412,7 @@ export const ZodString: core.$constructor<ZodString> = /*@__PURE__*/ core.$const
   inst.ulid = (params) => inst.check(core._ulid(ZodULID, params));
   inst.base64 = (params) => inst.check(core._base64(ZodBase64, params));
   inst.base64url = (params) => inst.check(core._base64url(ZodBase64URL, params));
+  inst.base64JS = (params) => inst.check(core._base64JS(ZodBase64JS, params));
   inst.xid = (params) => inst.check(core._xid(ZodXID, params));
   inst.ksuid = (params) => inst.check(core._ksuid(ZodKSUID, params));
   inst.ipv4 = (params) => inst.check(core._ipv4(ZodIPv4, params));
@@ -727,6 +730,21 @@ export const ZodBase64URL: core.$constructor<ZodBase64URL> = /*@__PURE__*/ core.
 );
 export function base64url(params?: string | core.$ZodBase64URLParams): ZodBase64URL {
   return core._base64url(ZodBase64URL, params);
+}
+
+// ZodBase64JS
+export interface ZodBase64JS extends ZodStringFormat<core.$ZodBase64Alphabet> {
+  _zod: core.$ZodBase64JSInternals;
+}
+export const ZodBase64JS: core.$constructor<ZodBase64JS> = /*@__PURE__*/ core.$constructor(
+  "ZodBase64JS",
+  (inst, def) => {
+    core.$ZodBase64JS.init(inst, def);
+    ZodStringFormat.init(inst, def);
+  }
+);
+export function base64JS(params?: string | core.$ZodBase64JSParams): ZodBase64JS {
+  return core._base64JS(ZodBase64JS, params);
 }
 
 // ZodE164
